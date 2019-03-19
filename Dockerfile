@@ -1,8 +1,7 @@
-FROM nvcr.io/nvidia/pytorch:19.03-py3
-
+#FROM nvcr.io/nvidia/pytorch:19.03-py3
+FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 # set mirror 
-
 RUN echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted" > /etc/apt/sources.list  \
 && echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates main restricted" >> /etc/apt/sources.list \
 && echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial universe" >> /etc/apt/sources.list \
@@ -22,14 +21,47 @@ RUN apt-get update && apt-get install -y \
     libx11-6 \
  && rm -rf /var/lib/apt/lists/*
 
-# Create a working directory
-RUN mkdir /app
-WORKDIR /app
+# -----------------------------start Install pytorch-----------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+         build-essential \
+         cmake \
+         git \
+         curl \
+         vim \
+         ca-certificates \
+         libjpeg-dev \ 
+         libpng-dev \
+   && rm -rf /var/lib/apt/lists/*
+
+#https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+
+RUN curl -o ~/miniconda.sh -O  https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh  && \
+     chmod +x ~/miniconda.sh && \
+     ~/miniconda.sh -b -p /opt/conda && \
+     rm ~/miniconda.sh 
+
+ENV PATH /opt/conda/bin:$PATH
+
+# config mirror from tsinghua
+RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
+ && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
+ && /opt/conda/bin/conda config --set show_channel_urls yes
+
+
+RUN  /opt/conda/bin/conda install numpy pandas pyyaml scipy ipython mkl mkl-include && \
+     /opt/conda/bin/conda install -c pytorch magma-cuda90 && \
+     /opt/conda/bin/conda clean -ya
 
 
 
+WORKDIR /opt/pytorch
 
-# -----------------------------start Install R-----------------------
+RUN conda install pytorch torchvision cudatoolkit=9.0 -c pytorch \
+  && conda clean -ya
+
+# -----------------------------End Install pytorch-----------------------
+
+# -----------------------------Start Install R-----------------------
 # From https://github.com/rocker-org/rocker/blob/dd21f0b706/r-apt/xenial/Dockerfile
 ## Set a default user. Available via runtime flag `--user docker` 
 ## Add user to 'staff' group, granting them write privileges to /usr/local/lib/R/site.library
@@ -48,13 +80,13 @@ RUN sudo apt-get update \
 		vim-tiny \
 		wget \
 		ca-certificates \
-        && echo "deb https://mirrors.tuna.tsinghua.edu.cn/CRAN/bin/linux/ubuntu xenial-cran35/" | sudo tee -a /etc/apt/sources.list \
+        && printf "deb https://mirrors.tuna.tsinghua.edu.cn/CRAN/bin/linux/ubuntu xenial-cran35/" | sudo tee -a /etc/apt/sources.list \
          && sudo add-apt-repository --enable-source --yes "ppa:marutter/rrutter" \
 	&& sudo add-apt-repository --enable-source --yes "ppa:marutter/c2d4u" 
 
 ## Configure default locale, see https://github.com/rocker-org/rocker/issues/19
 
-RUN echo "en_US.UTF-8 UTF-8" | sudo tee --append /etc/locale.gen \
+RUN printf "en_US.UTF-8 UTF-8" | sudo tee --append /etc/locale.gen \
 	&& sudo locale-gen en_US.utf8 \
 	&& sudo /usr/sbin/update-locale LANG=en_US.UTF-8
 
@@ -71,25 +103,26 @@ RUN sudo apt-get install -y apt-transport-https \
 
 RUN sudo apt-get update \
         && sudo apt-get install -y --no-install-recommends \
-                 littler \
+#                 littler \
  		 r-base \
- 		 r-base-dev \
- 		 r-recommended \
-                 r-cran-rcpp \
- 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/install.r /usr/local/bin/install.r \
- 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/install2.r /usr/local/bin/install2.r \
- 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/installGithub.r /usr/local/bin/installGithub.r \
- 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/testInstalled.r /usr/local/bin/testInstalled.r \
- 	&& sudo install.r docopt \
- 	&& sudo rm -rf /tmp/downloaded_packages/ /tmp/*.rds \
- 	&& sudo rm -rf /var/lib/apt/lists/*
+ 		 r-base-dev 
+# 		 r-recommended \
+#                 r-cran-rcpp \
+# 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/install.r /usr/local/bin/install.r \
+# 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/install2.r /usr/local/bin/install2.r \
+# 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/installGithub.r /usr/local/bin/installGithub.r \
+# 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/testInstalled.r /usr/local/bin/testInstalled.r \
+# 	&& sudo install.r docopt \
+# 	&& sudo rm -rf /tmp/downloaded_packages/ /tmp/*.rds \
+# 	&& sudo rm -rf /var/lib/apt/lists/*
 
 
-RUN echo "export R_HOME=/usr/lib/R" | sudo tee -a /etc/profile
+RUN printf "export R_HOME=/usr/lib/R" | sudo tee -a /etc/profile
 
-# -----------------------------end Install R-----------------------
+# -----------------------------End Install R-----------------------
 
-# -----------------------------start Install Rstudio-----------------------
+
+# -----------------------------Start Install Rstudio-----------------------
 # From: https://github.com/rocker-org/rocker-versioned/blob/master/rstudio/3.5.2/Dockerfile
 ARG RSTUDIO_VERSION
 #ENV RSTUDIO_VERSION=${RSTUDIO_VERSION:0.1.463}
@@ -103,8 +136,8 @@ ENV PANDOC_TEMPLATES_VERSION=${PANDOC_TEMPLATES_VERSION:-2.6}
 ## Download and install RStudio server & dependencies
 ## Attempts to get detect latest version, otherwise falls back to version given in $VER
 ## Symlink pandoc, pandoc-citeproc so they are available system-wide
-RUN sudo apt-get update \
-  && sudo apt-get install -y --no-install-recommends \
+
+RUN sudo apt-get install -y --no-install-recommends \
     file \
 #    git \
     libapparmor1 \
@@ -139,24 +172,24 @@ RUN sudo ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc /usr/local/bin \
   && sudo mkdir -p /etc/R \
   ## Write config files in $R_HOME/etc
   && sudo mkdir -p /usr/lib/R/etc/ \
-  && echo '\n\
+  && printf '\n\
     \n# Configure httr to perform out-of-band authentication if HTTR_LOCALHOST \
     \n# is not set since a redirect to localhost may not work depending upon \
     \n# where this Docker container is running. \
     \nif(is.na(Sys.getenv("HTTR_LOCALHOST", unset=NA))) { \
     \n  options(httr_oob_default = TRUE) \
     \n}' | sudo tee /usr/lib/R/etc/Rprofile.site \
-  && echo "PATH=${PATH}" | sudo tee -a /usr/lib/R/etc/Renviron \
+  && printf "PATH=${PATH}" | sudo tee -a /usr/lib/R/etc/Renviron \
   ## Need to configure non-root user for RStudio
   && sudo useradd rstudio \
-  && echo "rstudio:rstudio" | sudo chpasswd \
+  && printf "rstudio:rstudio" | sudo chpasswd \
 	&& sudo mkdir /home/rstudio \
 	&& sudo chown rstudio:rstudio /home/rstudio \
 	&& sudo addgroup rstudio staff \
   ## Prevent rstudio from deciding to use /usr/bin/R if a user apt-get installs a package
-  &&  echo 'rsession-which-r=/usr/bin/R' | sudo  tee -a /etc/rstudio/rserver.conf \
+  &&  printf 'rsession-which-r=/usr/bin/R' | sudo  tee -a /etc/rstudio/rserver.conf \
   ## use more robust file locking to avoid errors when using shared volumes:
-  && echo 'lock-type=advisory' | sudo tee -a /etc/rstudio/file-locks \
+  && printf 'lock-type=advisory' | sudo tee -a /etc/rstudio/file-locks \
   ## configure git not to request password each time
   && sudo git config --system credential.helper 'cache --timeout=3600' \
   && sudo git config --system push.default simple \
@@ -164,16 +197,16 @@ RUN sudo ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc /usr/local/bin \
   && wget -P /tmp/ https://github.com/just-containers/s6-overlay/releases/download/${S6_VERSION}/s6-overlay-amd64.tar.gz \
   && sudo tar xzf /tmp/s6-overlay-amd64.tar.gz -C / \
   && sudo mkdir -p /etc/services.d/rstudio \
-  && echo '#!/usr/bin/with-contenv bash \
+  && printf '#!/usr/bin/with-contenv bash \
           \n## load /etc/environment vars first: \
   		  \n for line in $( cat /etc/environment ) ; do export $line ; done \
           \n exec /usr/lib/rstudio-server/bin/rserver --server-daemonize 0' \
           | sudo tee /etc/services.d/rstudio/run \
-  && echo '#!/bin/bash \
+  && printf '#!/bin/bash \
           \n rstudio-server stop' \
           | sudo tee /etc/services.d/rstudio/finish \
   && sudo mkdir -p /home/rstudio/.rstudio/monitored/user-settings \
-  && echo 'alwaysSaveHistory="0" \
+  && printf 'alwaysSaveHistory="0" \
           \nloadRData="0" \
           \nsaveAction="0"' \
           | sudo tee /home/rstudio/.rstudio/monitored/user-settings/user-settings \
@@ -188,9 +221,9 @@ COPY pam-helper.sh /usr/lib/rstudio-server/bin/pam-helper
 
 EXPOSE 8787
 EXPOSE 22
-# -----------------------------end Install Rstudio-----------------------
+# -----------------------------End Install Rstudio-----------------------
 
-# -----------------------------start Install package-----------------------
+# -----------------------------Start Install Package-----------------------
 RUN sudo apt-get update && sudo apt-get -y --no-install-recommends install \
   libxml2-dev \
   libcairo2-dev \
@@ -201,25 +234,25 @@ RUN sudo apt-get update && sudo apt-get -y --no-install-recommends install \
   libssh2-1-dev \
   unixodbc-dev 
 
-
 # tidyverse
-RUN R -e "install.packages(c('tidyverse','dplyr','devtools','formatR','remotes','selectr','caTools','BiocManager'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+RUN R -e "install.packages('tidyverse',repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
+RUN R -e "install.packages(c('devtools','formatR','remotes','selectr','caTools','BiocManager'),repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
-RUN R -e "install.packages('HCR', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
-RUN R -e "install.packages('SELF', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+RUN R -e "install.packages('HCR', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
+RUN R -e "install.packages('SELF', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 RUN R -e "install.packages('reticulate', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
 
-RUN R -e "install.packages(c('foreach','doParallel'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+RUN R -e "install.packages(c('foreach','doParallel'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 # install pcalg
-RUN R -e "install.packages('BiocManager', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')" \
+RUN R -e "install.packages('BiocManager', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')" \
  && R -e "options('BioC_mirror'='http://mirrors.ustc.edu.cn/bioc/');BiocManager::install(c('graph','RBGL','Rgraphviz'))" 
 RUN sudo apt-get install -y libv8-3.14-dev \
- && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+ && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 # install kpcalg
-RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 # config mirror from tsinghua
 RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
@@ -228,12 +261,12 @@ RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pk
 
 # Install rpy2
 RUN sudo env "PATH=$PATH" conda install -y PyHamcrest
-RUN sudo apt-get update && sudo apt-get install -y libreadline6-dev
+RUN sudo apt-get install -y libreadline6-dev
 RUN echo "export LD_LIBRARY_PATH=/usr/lib/R/lib/:/usr/lib/R/library/stats/libs/" |sudo tee -a /etc/profile
 RUN sudo env "PATH=$PATH" pip install rpy2 
 
 # Install ggplot
-RUN sudo env "PATH=$PATH" pip install ggplot && conda clean -ya
+RUN sudo env "PATH=$PATH" /opt/conda/bin/pip install ggplot && conda clean -ya
 
 # fix the python error in matplotlib 
 RUN sudo apt-get install -y libgl1-mesa-glx
@@ -242,14 +275,13 @@ RUN sudo apt-get install -y libgl1-mesa-glx
 RUN sudo bash -c 'echo "/usr/lib/R/lib/" > /etc/ld.so.conf.d/libR.conf' && sudo ldconfig
 
 # fix the python error in ggplot
-RUN sudo sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.6/site-packages/ggplot/stats/smoothers.py \
- && sudo sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.6/site-packages/ggplot/stats/smoothers.py
-# -----------------------------end Install package-----------------------
+RUN sudo sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
+ && sudo sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py
+# -----------------------------End Install Package-----------------------
 
-# -----------------------------start config ssh-----------------------
+# -----------------------------Start Config SSH-----------------------
 # Create a non-root user and switch to it
 RUN adduser --disabled-password --gecos '' --shell /bin/bash qj \
- && chown -R qj:qj /app \
  && usermod -g staff qj
 RUN echo "qj ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-qj
 USER qj
@@ -262,7 +294,7 @@ RUN chmod 777 /home/qj
 RUN echo "qj:qj1234" | sudo chpasswd 
 
 
-RUN sudo apt-get update && sudo apt-get -y install openssh-server supervisor
+RUN sudo sudo apt-get -y install openssh-server supervisor
 RUN sudo mkdir /var/run/sshd
 RUN sudo sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
@@ -270,11 +302,14 @@ RUN sudo sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/s
 RUN sudo sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
 ENV NOTVISIBLE "in users profile"
-RUN echo "export VISIBLE=now" >> sudo /etc/profile
-# -----------------------------end config ssh-----------------------
+RUN echo "export VISIBLE=now" |sudo tee -a /etc/profile
+# -----------------------------End Config SSH-----------------------
+
 
 COPY startup.sh /home/qj/startup.sh
 CMD ["sh","/home/qj/startup.sh"]
 
 #CMD rstudio-server start && bash
+
+
 
