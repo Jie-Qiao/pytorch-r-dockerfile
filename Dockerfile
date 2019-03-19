@@ -59,6 +59,11 @@ WORKDIR /opt/pytorch
 RUN conda install pytorch torchvision cudatoolkit=9.0 -c pytorch \
   && conda clean -ya
 
+WORKDIR /opt/pytorch
+
+RUN conda install pytorch torchvision cudatoolkit=9.0 -c pytorch \
+  && conda clean -ya
+
 # -----------------------------End Install pytorch-----------------------
 
 # -----------------------------Start Install R-----------------------
@@ -120,6 +125,8 @@ RUN sudo apt-get update \
 RUN printf "export R_HOME=/usr/lib/R" | sudo tee -a /etc/profile
 
 # -----------------------------End Install R-----------------------
+
+
 
 
 # -----------------------------Start Install Rstudio-----------------------
