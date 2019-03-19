@@ -1,0 +1,280 @@
+FROM nvcr.io/nvidia/pytorch:19.03-py3
+
+
+# set mirror 
+
+RUN echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted" > /etc/apt/sources.list  \
+&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates main restricted" >> /etc/apt/sources.list \
+&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial universe" >> /etc/apt/sources.list \
+&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates universe" >> /etc/apt/sources.list \
+&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial multiverse" >> /etc/apt/sources.list \
+&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates multiverse" >> /etc/apt/sources.list \
+&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-backports main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-security main restricted" >> /etc/apt/sources.list \
+&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-security universe" >> /etc/apt/sources.list
+
+# Install some basic utilities
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    sudo \
+    bzip2 \
+    libx11-6 \
+ && rm -rf /var/lib/apt/lists/*
+
+# Create a working directory
+RUN mkdir /app
+WORKDIR /app
+
+
+
+
+# -----------------------------start Install R-----------------------
+# From https://github.com/rocker-org/rocker/blob/dd21f0b706/r-apt/xenial/Dockerfile
+## Set a default user. Available via runtime flag `--user docker` 
+## Add user to 'staff' group, granting them write privileges to /usr/local/lib/R/site.library
+## User should also have & own a home directory (for rstudio or linked volumes to work properly). 
+RUN sudo useradd docker \
+	&& sudo mkdir /home/docker \
+	&& sudo chown docker:docker /home/docker \
+	&& sudo addgroup docker staff
+
+RUN sudo apt-get update \ 
+	&& sudo apt-get install -y --no-install-recommends \
+		software-properties-common \
+                ed \
+		less \
+		locales \
+		vim-tiny \
+		wget \
+		ca-certificates \
+        && echo "deb https://mirrors.tuna.tsinghua.edu.cn/CRAN/bin/linux/ubuntu xenial-cran35/" | sudo tee -a /etc/apt/sources.list \
+         && sudo add-apt-repository --enable-source --yes "ppa:marutter/rrutter" \
+	&& sudo add-apt-repository --enable-source --yes "ppa:marutter/c2d4u" 
+
+## Configure default locale, see https://github.com/rocker-org/rocker/issues/19
+
+RUN echo "en_US.UTF-8 UTF-8" | sudo tee --append /etc/locale.gen \
+	&& sudo locale-gen en_US.utf8 \
+	&& sudo /usr/sbin/update-locale LANG=en_US.UTF-8
+
+ENV LC_ALL en_US.UTF-8
+ENV LANG en_US.UTF-8
+
+## Now install R and littler, and create a link for littler in /usr/local/bin
+## Default CRAN repo is now set by R itself, and littler knows about it too
+## r-cran-docopt is not currently in c2d4u so we install from source
+
+#fix the tsinghua mirror
+RUN sudo apt-get install -y apt-transport-https \
+  &&sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 51716619E084DAB9
+
+RUN sudo apt-get update \
+        && sudo apt-get install -y --no-install-recommends \
+                 littler \
+ 		 r-base \
+ 		 r-base-dev \
+ 		 r-recommended \
+                 r-cran-rcpp \
+ 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/install.r /usr/local/bin/install.r \
+ 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/install2.r /usr/local/bin/install2.r \
+ 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/installGithub.r /usr/local/bin/installGithub.r \
+ 	&& sudo ln -s /usr/lib/R/site-library/littler/examples/testInstalled.r /usr/local/bin/testInstalled.r \
+ 	&& sudo install.r docopt \
+ 	&& sudo rm -rf /tmp/downloaded_packages/ /tmp/*.rds \
+ 	&& sudo rm -rf /var/lib/apt/lists/*
+
+
+RUN echo "export R_HOME=/usr/lib/R" | sudo tee -a /etc/profile
+
+# -----------------------------end Install R-----------------------
+
+# -----------------------------start Install Rstudio-----------------------
+# From: https://github.com/rocker-org/rocker-versioned/blob/master/rstudio/3.5.2/Dockerfile
+ARG RSTUDIO_VERSION
+#ENV RSTUDIO_VERSION=${RSTUDIO_VERSION:0.1.463}
+ARG S6_VERSION
+ARG PANDOC_TEMPLATES_VERSION
+ENV S6_VERSION=${S6_VERSION:-v1.21.7.0}
+ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
+ENV PATH=/usr/lib/rstudio-server/bin:$PATH
+ENV PANDOC_TEMPLATES_VERSION=${PANDOC_TEMPLATES_VERSION:-2.6}
+
+## Download and install RStudio server & dependencies
+## Attempts to get detect latest version, otherwise falls back to version given in $VER
+## Symlink pandoc, pandoc-citeproc so they are available system-wide
+RUN sudo apt-get update \
+  && sudo apt-get install -y --no-install-recommends \
+    file \
+#    git \
+    libapparmor1 \
+    libcurl4-openssl-dev \
+    libedit2 \
+    libssl-dev \
+    lsb-release \
+    psmisc \
+    procps \
+    axel 
+#    python-setuptools \
+#  && wget -O libssl1.0.0.deb http://ftp.debian.org/debian/pool/main/o/openssl libssl1.0.0_1.0.1t-1+deb8u8_amd64.deb \
+#  && sudo dpkg -i libssl1.0.0.deb \
+#  && sudo rm libssl1.0.0.deb 
+
+RUN   RSTUDIO_LATEST=$(wget --no-check-certificate -qO- https://s3.amazonaws.com/rstudio-server/current.ver) \
+  && [ -z "$RSTUDIO_VERSION" ] && RSTUDIO_VERSION=$RSTUDIO_LATEST || true \
+  && axel -n 10 http://download2.rstudio.org/rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
+  && sudo dpkg -i rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
+  && sudo rm rstudio-server-*-amd64.deb 
+
+## Symlink pandoc & standard pandoc templates for use system-wide
+RUN sudo ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc /usr/local/bin \
+  && sudo ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc-citeproc /usr/local/bin \
+  && sudo git clone --recursive --branch ${PANDOC_TEMPLATES_VERSION} https://github.com/jgm/pandoc-templates \
+  && sudo mkdir -p /opt/pandoc/templates \
+  && sudo cp -r pandoc-templates*/* /opt/pandoc/templates && sudo rm -rf pandoc-templates* \
+  && sudo mkdir /root/.pandoc && sudo  ln -s /opt/pandoc/templates /root/.pandoc/templates \
+  && sudo apt-get clean \
+  && sudo rm -rf /var/lib/apt/lists/ \
+  ## RStudio wants an /etc/R, will populate from $R_HOME/etc
+  && sudo mkdir -p /etc/R \
+  ## Write config files in $R_HOME/etc
+  && sudo mkdir -p /usr/lib/R/etc/ \
+  && echo '\n\
+    \n# Configure httr to perform out-of-band authentication if HTTR_LOCALHOST \
+    \n# is not set since a redirect to localhost may not work depending upon \
+    \n# where this Docker container is running. \
+    \nif(is.na(Sys.getenv("HTTR_LOCALHOST", unset=NA))) { \
+    \n  options(httr_oob_default = TRUE) \
+    \n}' | sudo tee /usr/lib/R/etc/Rprofile.site \
+  && echo "PATH=${PATH}" | sudo tee -a /usr/lib/R/etc/Renviron \
+  ## Need to configure non-root user for RStudio
+  && sudo useradd rstudio \
+  && echo "rstudio:rstudio" | sudo chpasswd \
+	&& sudo mkdir /home/rstudio \
+	&& sudo chown rstudio:rstudio /home/rstudio \
+	&& sudo addgroup rstudio staff \
+  ## Prevent rstudio from deciding to use /usr/bin/R if a user apt-get installs a package
+  &&  echo 'rsession-which-r=/usr/bin/R' | sudo  tee -a /etc/rstudio/rserver.conf \
+  ## use more robust file locking to avoid errors when using shared volumes:
+  && echo 'lock-type=advisory' | sudo tee -a /etc/rstudio/file-locks \
+  ## configure git not to request password each time
+  && sudo git config --system credential.helper 'cache --timeout=3600' \
+  && sudo git config --system push.default simple \
+  ## Set up S6 init system
+  && wget -P /tmp/ https://github.com/just-containers/s6-overlay/releases/download/${S6_VERSION}/s6-overlay-amd64.tar.gz \
+  && sudo tar xzf /tmp/s6-overlay-amd64.tar.gz -C / \
+  && sudo mkdir -p /etc/services.d/rstudio \
+  && echo '#!/usr/bin/with-contenv bash \
+          \n## load /etc/environment vars first: \
+  		  \n for line in $( cat /etc/environment ) ; do export $line ; done \
+          \n exec /usr/lib/rstudio-server/bin/rserver --server-daemonize 0' \
+          | sudo tee /etc/services.d/rstudio/run \
+  && echo '#!/bin/bash \
+          \n rstudio-server stop' \
+          | sudo tee /etc/services.d/rstudio/finish \
+  && sudo mkdir -p /home/rstudio/.rstudio/monitored/user-settings \
+  && echo 'alwaysSaveHistory="0" \
+          \nloadRData="0" \
+          \nsaveAction="0"' \
+          | sudo tee /home/rstudio/.rstudio/monitored/user-settings/user-settings \
+  && sudo chown -R rstudio:rstudio /home/rstudio/.rstudio
+
+COPY userconf.sh /etc/cont-init.d/userconf
+
+## running with "-e ADD=shiny" adds shiny server
+COPY add_shiny.sh /etc/cont-init.d/add
+#COPY disable_auth_rserver.conf /etc/rstudio/disable_auth_rserver.conf
+COPY pam-helper.sh /usr/lib/rstudio-server/bin/pam-helper
+
+EXPOSE 8787
+EXPOSE 22
+# -----------------------------end Install Rstudio-----------------------
+
+# -----------------------------start Install package-----------------------
+RUN sudo apt-get update && sudo apt-get -y --no-install-recommends install \
+  libxml2-dev \
+  libcairo2-dev \
+  libsqlite3-dev \
+  libmariadbd-dev \
+  libmariadb-client-lgpl-dev \
+  libpq-dev \
+  libssh2-1-dev \
+  unixodbc-dev 
+
+
+# tidyverse
+RUN R -e "install.packages(c('tidyverse','dplyr','devtools','formatR','remotes','selectr','caTools','BiocManager'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+
+RUN R -e "install.packages('HCR', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+RUN R -e "install.packages('SELF', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+
+RUN R -e "install.packages('reticulate', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+
+RUN R -e "install.packages(c('foreach','doParallel'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+
+# install pcalg
+RUN R -e "install.packages('BiocManager', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')" \
+ && R -e "options('BioC_mirror'='http://mirrors.ustc.edu.cn/bioc/');BiocManager::install(c('graph','RBGL','Rgraphviz'))" 
+RUN sudo apt-get install -y libv8-3.14-dev \
+ && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+
+# install kpcalg
+RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN/')"
+
+# config mirror from tsinghua
+RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
+ && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
+ && conda config --set show_channel_urls yes
+
+# Install rpy2
+RUN sudo env "PATH=$PATH" conda install -y PyHamcrest
+RUN sudo apt-get update && sudo apt-get install -y libreadline6-dev
+RUN echo "export LD_LIBRARY_PATH=/usr/lib/R/lib/:/usr/lib/R/library/stats/libs/" |sudo tee -a /etc/profile
+RUN sudo env "PATH=$PATH" pip install rpy2 
+
+# Install ggplot
+RUN sudo env "PATH=$PATH" pip install ggplot && conda clean -ya
+
+# fix the python error in matplotlib 
+RUN sudo apt-get install -y libgl1-mesa-glx
+
+# fix the rpy2 bug: "libRlapack.so: cannot open shared object file"
+RUN sudo bash -c 'echo "/usr/lib/R/lib/" > /etc/ld.so.conf.d/libR.conf' && sudo ldconfig
+
+# fix the python error in ggplot
+RUN sudo sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.6/site-packages/ggplot/stats/smoothers.py \
+ && sudo sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.6/site-packages/ggplot/stats/smoothers.py
+# -----------------------------end Install package-----------------------
+
+# -----------------------------start config ssh-----------------------
+# Create a non-root user and switch to it
+RUN adduser --disabled-password --gecos '' --shell /bin/bash qj \
+ && chown -R qj:qj /app \
+ && usermod -g staff qj
+RUN echo "qj ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-qj
+USER qj
+
+# All users can use /home/qj as their home directory
+ENV HOME=/home/qj
+RUN chmod 777 /home/qj
+
+# creat qj
+RUN echo "qj:qj1234" | sudo chpasswd 
+
+
+RUN sudo apt-get update && sudo apt-get -y install openssh-server supervisor
+RUN sudo mkdir /var/run/sshd
+RUN sudo sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+RUN sudo sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" >> sudo /etc/profile
+# -----------------------------end config ssh-----------------------
+
+COPY startup.sh /home/qj/startup.sh
+CMD ["sh","/home/qj/startup.sh"]
+
+#CMD rstudio-server start && bash
+
