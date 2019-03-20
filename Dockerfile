@@ -264,7 +264,7 @@ RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pk
 # Install rpy2
 RUN sudo env "PATH=$PATH" conda install -y PyHamcrest
 RUN sudo apt-get install -y libreadline6-dev
-RUN echo "export LD_LIBRARY_PATH=/usr/lib/R/lib/:/usr/lib/R/library/stats/libs/" |sudo tee -a /etc/profile
+RUN printf "\n export LD_LIBRARY_PATH=/usr/lib/R/lib/:/usr/lib/R/library/stats/libs/" |sudo tee -a /etc/profile
 RUN sudo env "PATH=$PATH" pip install rpy2 
 
 # Install ggplot
@@ -277,8 +277,9 @@ RUN sudo apt-get install -y libgl1-mesa-glx
 RUN sudo bash -c 'echo "/usr/lib/R/lib/" > /etc/ld.so.conf.d/libR.conf' && sudo ldconfig
 
 # fix the python error in ggplot
-RUN sudo sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
- && sudo sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py
+RUN sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
+ && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
+ && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/utils.py
 # -----------------------------End Install Package-----------------------
 
 # -----------------------------Start Config SSH-----------------------
