@@ -222,7 +222,6 @@ COPY add_shiny.sh /etc/cont-init.d/add
 COPY pam-helper.sh /usr/lib/rstudio-server/bin/pam-helper
 
 EXPOSE 8787
-EXPOSE 22
 # -----------------------------End Install Rstudio-----------------------
 
 # -----------------------------Start Install Package-----------------------
@@ -235,6 +234,31 @@ RUN sudo apt-get update && sudo apt-get -y --no-install-recommends install \
   libpq-dev \
   libssh2-1-dev \
   unixodbc-dev 
+
+# config mirror from tsinghua
+#RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
+# && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
+# && conda config --set show_channel_urls yes 
+
+# Install rpy2
+RUN conda install -y PyHamcrest
+RUN sudo apt-get install -y libreadline6-dev
+RUN printf "\n export LD_LIBRARY_PATH=/usr/lib/R/lib/:/usr/lib/R/library/stats/libs/" |sudo tee -a /etc/profile
+RUN sudo env "PATH=$PATH" pip install rpy2 
+
+# Install ggplot for python
+RUN sudo env "PATH=$PATH" /opt/conda/bin/pip install ggplot && conda clean -ya
+
+# fix the python error in matplotlib 
+RUN sudo apt-get install -y libgl1-mesa-glx
+
+# fix the rpy2 bug: "libRlapack.so: cannot open shared object file"
+RUN sudo bash -c 'echo "/usr/lib/R/lib/" > /etc/ld.so.conf.d/libR.conf' && sudo ldconfig
+
+# fix the python error in ggplot
+RUN sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
+ && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
+ && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/utils.py
 
 # tidyverse
 RUN R -e "install.packages('tidyverse',repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
@@ -249,37 +273,13 @@ RUN R -e "install.packages(c('foreach','doParallel'), repos = 'https://mirrors.t
 
 # install pcalg
 RUN R -e "install.packages('BiocManager', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')" \
- && R -e "options('BioC_mirror'='http://mirrors.ustc.edu.cn/bioc/');BiocManager::install(c('graph','RBGL','Rgraphviz'))" 
+ && R -e "options('BioC_mirror'='http://mirrors.ustc.edu.cn/bioc/');BiocManager::install(c('graph','RBGL','Rgraphviz'))"
 RUN sudo apt-get install -y libv8-3.14-dev \
  && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 # install kpcalg
 RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
-# config mirror from tsinghua
-RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
- && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
- && conda config --set show_channel_urls yes
-
-# Install rpy2
-RUN sudo env "PATH=$PATH" conda install -y PyHamcrest
-RUN sudo apt-get install -y libreadline6-dev
-RUN printf "\n export LD_LIBRARY_PATH=/usr/lib/R/lib/:/usr/lib/R/library/stats/libs/" |sudo tee -a /etc/profile
-RUN sudo env "PATH=$PATH" pip install rpy2 
-
-# Install ggplot
-RUN sudo env "PATH=$PATH" /opt/conda/bin/pip install ggplot && conda clean -ya
-
-# fix the python error in matplotlib 
-RUN sudo apt-get install -y libgl1-mesa-glx
-
-# fix the rpy2 bug: "libRlapack.so: cannot open shared object file"
-RUN sudo bash -c 'echo "/usr/lib/R/lib/" > /etc/ld.so.conf.d/libR.conf' && sudo ldconfig
-
-# fix the python error in ggplot
-RUN sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
- && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
- && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/utils.py
 # -----------------------------End Install Package-----------------------
 
 # -----------------------------Start Config SSH-----------------------
@@ -306,6 +306,7 @@ RUN sudo sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginu
 
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" |sudo tee -a /etc/profile
+EXPOSE 22
 # -----------------------------End Config SSH-----------------------
 
 
