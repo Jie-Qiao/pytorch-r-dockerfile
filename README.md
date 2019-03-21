@@ -1,7 +1,7 @@
 # Introdution
-This dockerfile provides the services for nvidia-gpu support, pytorch and rstudio server.
+This dockerfile provides the services with nvidia-gpu, pytorch and rstudio-server.
 
-This image is built based on the `nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04`, you may need to select the right CUDA version, see https://hub.docker.com/r/nvidia/cuda/.
+This image is based on the `nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04`, you may need to select other CUDA versions, see https://hub.docker.com/r/nvidia/cuda/.
 
 
 In addition, some additional packages have be installed for my personal used, thus, you may need some personalized customizations in this Dockerfile.
