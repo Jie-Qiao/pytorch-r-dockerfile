@@ -34,11 +34,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
    && rm -rf /var/lib/apt/lists/*
 
 #https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+#https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh
+# use anaconda
 
-RUN curl -o ~/miniconda.sh -O  https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh  && \
-     chmod +x ~/miniconda.sh && \
-     ~/miniconda.sh -b -p /opt/conda && \
-     rm ~/miniconda.sh 
+RUN curl -o ~/anaconda.sh -O  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-5.3.1-Linux-x86_64.sh  && \
+     chmod +x ~/anaconda.sh && \
+     ~/anaconda.sh -b -p /opt/conda && \
+     rm ~/anaconda.sh 
 
 ENV PATH /opt/conda/bin:$PATH
 
@@ -47,12 +49,9 @@ RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu
  && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
  && /opt/conda/bin/conda config --set show_channel_urls yes
 
-
-RUN  /opt/conda/bin/conda install numpy pandas pyyaml scipy ipython mkl mkl-include && \
-     /opt/conda/bin/conda install -c pytorch magma-cuda90 && \
-     /opt/conda/bin/conda clean -ya
-
-
+#RUN  /opt/conda/bin/conda install numpy pandas pyyaml scipy ipython mkl mkl-include && \
+#     /opt/conda/bin/conda install -c pytorch magma-cuda90 && \
+#     /opt/conda/bin/conda clean -ya
 
 WORKDIR /opt/pytorch
 
