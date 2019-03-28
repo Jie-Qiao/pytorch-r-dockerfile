@@ -273,12 +273,25 @@ RUN R -e "install.packages(c('foreach','doParallel'), repos = 'https://mirrors.t
 # install pcalg
 RUN R -e "install.packages('BiocManager', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')" \
  && R -e "options('BioC_mirror'='http://mirrors.ustc.edu.cn/bioc/');BiocManager::install(c('graph','RBGL','Rgraphviz'))"
+
+
 RUN sudo apt-get install -y libv8-3.14-dev \
- && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
+ && mv /opt/conda/lib/libgfortran.so.4.0.0 /opt/conda/lib/libgfortran.so.4.0.0.bak \
+ && mv /opt/conda/lib/libgfortran.so.4 /opt/conda/lib/libgfortran.so.4.bak \
+ && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')" \
+ && mv /opt/conda/lib/libgfortran.so.4.0.0.bak /opt/conda/lib/libgfortran.so.4.0.0 \
+ && mv /opt/conda/lib/libgfortran.so.4.bak /opt/conda/lib/libgfortran.so.4 
+
+
+#RUN sudo add-apt-repository ppa:jonathonf/gcc-7.1 \
+# && sudo apt-get update \
+# && sudo apt-get install -y gcc-7 g++-7 --no-install-recommends \
+# && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 # install kpcalg
 RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
+RUN R -e "install.packages(c('roxygen2'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 # -----------------------------End Install Package-----------------------
 
 # -----------------------------Start Config SSH-----------------------
