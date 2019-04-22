@@ -294,13 +294,8 @@ RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.e
 RUN R -e "install.packages(c('roxygen2'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 # install opencv
-RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/ \
- && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/msys2/ \
- && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda/ \
- && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/menpo/ \
- && conda config --set show_channel_urls yes \
- && conda install --override-channels -c main -c conda-forge opencv -y \
- && conda clean -ya
+RUN pip install opencv-python -i https://pypi.douban.com/simple
+
 
 # -----------------------------End Install Package-----------------------
 
