@@ -324,6 +324,10 @@ RUN sudo sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginu
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" |sudo tee -a /etc/profile
 EXPOSE 22
+
+# support X11 forward
+RUN printf "\nX11UseLocalhost no\n" | sudo tee --append /etc/ssh/sshd_config
+
 # -----------------------------End Config SSH-----------------------
 
 
