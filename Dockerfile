@@ -299,6 +299,19 @@ RUN pip install opencv-python -i https://pypi.douban.com/simple
 
 # -----------------------------End Install Package-----------------------
 
+#--------------------- start  Disentglement lib package------------------
+WORKDIR /opt
+RUN git clone https://github.com/google-research/disentanglement_lib.git \
+ && cd disentanglement_lib \
+ && pip install --upgrade setuptools \
+ && pip install .[tf_gpu]
+
+
+#--------------------- end  Disentglement lib package------------------
+
+
+
+
 # -----------------------------Start Config SSH-----------------------
 # Create a non-root user and switch to it
 RUN adduser --disabled-password --gecos '' --shell /bin/bash qj \
