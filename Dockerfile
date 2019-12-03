@@ -1,28 +1,45 @@
 #FROM nvcr.io/nvidia/pytorch:19.03-py3
-FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
 
 # set mirror 
-RUN echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted" > /etc/apt/sources.list  \
-&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates main restricted" >> /etc/apt/sources.list \
-&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial universe" >> /etc/apt/sources.list \
-&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates universe" >> /etc/apt/sources.list \
-&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial multiverse" >> /etc/apt/sources.list \
-&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates multiverse" >> /etc/apt/sources.list \
-&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-backports main restricted universe multiverse" >> /etc/apt/sources.list \
-&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-security main restricted" >> /etc/apt/sources.list \
-&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-security universe" >> /etc/apt/sources.list
+#RUN echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic main restricted" > /etc/apt/sources.list  \
+#&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic-updates main restricted" >> /etc/apt/sources.list \
+#&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic universe" >> /etc/apt/sources.list \
+#&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic-updates universe" >> /etc/apt/sources.list \
+#&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic multiverse" >> /etc/apt/sources.list \
+#&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic-updates multiverse" >> /etc/apt/sources.list \
+#&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic-backports main restricted universe multiverse" >> /etc/apt/sources.list \
+#&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic-security main restricted" >> /etc/apt/sources.list \
+#&& echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic-security universe" >> /etc/apt/sources.list
+
+RUN echo "deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse" > /etc/apt/sources.list \
+&& echo "deb http://mirrors.aliyun.com/ubuntu/ bionic-security main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb http://mirrors.aliyun.com/ubuntu/ bionic-updates main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb http://mirrors.aliyun.com/ubuntu/ bionic-backports main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb-src http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb-src http://mirrors.aliyun.com/ubuntu/ bionic-security main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb-src http://mirrors.aliyun.com/ubuntu/ bionic-updates main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb-src http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe multiverse" >> /etc/apt/sources.list \
+&& echo "deb-src http://mirrors.aliyun.com/ubuntu/ bionic-backports main restricted universe multiverse" >> /etc/apt/sources.list
+#RUN echo "nameserver 223.5.5.5" >> /etc/resolv.conf
+#RUN apt-key adv --fetch-keys http://developer.download.nvidia.cn/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
+
 
 # Install some basic utilities
-RUN apt-get update && apt-get install -y \
+
+RUN http_proxy=http://10.21.25.57:1081 apt-get update
+
+RUN apt-get install -y \
     curl \
     ca-certificates \
     sudo \
     bzip2 \
     libx11-6 \
- && rm -rf /var/lib/apt/lists/*
+    axel
 
 # -----------------------------start Install pytorch-----------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN  apt-get install -y --no-install-recommends \
          build-essential \
          cmake \
          git \
@@ -30,14 +47,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
          vim \
          ca-certificates \
          libjpeg-dev \ 
-         libpng-dev \
-   && rm -rf /var/lib/apt/lists/*
+         libpng-dev 
 
 #https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 #https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh
 # use anaconda
 
-RUN curl -o ~/anaconda.sh -O  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-5.3.1-Linux-x86_64.sh  && \
+RUN axel -n 10 -o ~/anaconda.sh  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2019.10-Linux-x86_64.sh  && \
      chmod +x ~/anaconda.sh && \
      ~/anaconda.sh -b -p /opt/conda && \
      rm ~/anaconda.sh 
@@ -47,6 +63,7 @@ ENV PATH /opt/conda/bin:$PATH
 # config mirror from tsinghua
 RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
  && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
+ && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch \
  && /opt/conda/bin/conda config --set show_channel_urls yes
 
 #RUN  /opt/conda/bin/conda install numpy pandas pyyaml scipy ipython mkl mkl-include && \
@@ -55,7 +72,7 @@ RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu
 
 WORKDIR /opt/pytorch
 
-RUN conda install pytorch torchvision cudatoolkit=9.0 -c pytorch \
+RUN conda install pytorch torchvision cudatoolkit=10.1 \
   && conda clean -ya
 
 # -----------------------------End Install pytorch-----------------------
@@ -70,18 +87,24 @@ RUN sudo useradd docker \
 	&& sudo chown docker:docker /home/docker \
 	&& sudo addgroup docker staff
 
-RUN sudo apt-get update \ 
-	&& sudo apt-get install -y --no-install-recommends \
+#fix the tsinghua mirror
+RUN sudo apt-get install -y apt-transport-https \
+ && sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 51716619E084DAB9 
+ 
+
+RUN  sudo apt-get install -y --no-install-recommends \
 		software-properties-common \
                 ed \
 		less \
 		locales \
 		vim-tiny \
 		wget \
-		ca-certificates \
-        && printf "deb https://mirrors.tuna.tsinghua.edu.cn/CRAN/bin/linux/ubuntu xenial-cran35/" | sudo tee -a /etc/apt/sources.list \
+		ca-certificates 
+
+RUN printf "deb https://mirrors.tuna.tsinghua.edu.cn/CRAN/bin/linux/ubuntu bionic-cran35/" | sudo tee -a /etc/apt/sources.list \
          && sudo add-apt-repository --enable-source --yes "ppa:marutter/rrutter" \
-	&& sudo add-apt-repository --enable-source --yes "ppa:marutter/c2d4u" 
+        && sudo add-apt-repository --enable-source --yes "ppa:marutter/c2d4u"
+
 
 ## Configure default locale, see https://github.com/rocker-org/rocker/issues/19
 
@@ -91,17 +114,18 @@ RUN printf "en_US.UTF-8 UTF-8" | sudo tee --append /etc/locale.gen \
 
 ENV LC_ALL en_US.UTF-8
 ENV LANG en_US.UTF-8
-
 ## Now install R and littler, and create a link for littler in /usr/local/bin
 ## Default CRAN repo is now set by R itself, and littler knows about it too
 ## r-cran-docopt is not currently in c2d4u so we install from source
 
 #fix the tsinghua mirror
-RUN sudo apt-get install -y apt-transport-https \
-  &&sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 51716619E084DAB9
+#RUN sudo apt-get install -y apt-transport-https \
+#&&sudo apt-key adv --recv-keys --keyserver pgpkeys.mit.edu 51716619E084DAB9
+#  &&sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 51716619E084DAB9
+#RUN gpg --keyserver pgpkeys.mit.edu --recv-key 51716619E084DAB9 \
+# && gpg -a --export 51716619E084DAB9 | sudo apt-key add -
 
-RUN sudo apt-get update \
-        && sudo apt-get install -y --no-install-recommends \
+RUN  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
 #                 littler \
  		 r-base \
  		 r-base-dev 
@@ -148,15 +172,16 @@ RUN sudo apt-get install -y --no-install-recommends \
     lsb-release \
     psmisc \
     procps \
-    axel 
+    libclang-dev
 #    python-setuptools \
 #  && wget -O libssl1.0.0.deb http://ftp.debian.org/debian/pool/main/o/openssl libssl1.0.0_1.0.1t-1+deb8u8_amd64.deb \
 #  && sudo dpkg -i libssl1.0.0.deb \
 #  && sudo rm libssl1.0.0.deb 
 
-RUN   RSTUDIO_LATEST=$(wget --no-check-certificate -qO- https://s3.amazonaws.com/rstudio-server/current.ver) \
+RUN  RSTUDIO_LATEST=$(wget --no-check-certificate -qO- https://s3.amazonaws.com/rstudio-server/current.ver) \
+  && RSTUDIO_LATEST=$(echo $RSTUDIO_LATEST | cut -d- -f1) \
   && [ -z "$RSTUDIO_VERSION" ] && RSTUDIO_VERSION=$RSTUDIO_LATEST || true \
-  && axel -n 10 http://download2.rstudio.org/rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
+  && axel -n 10 https://download2.rstudio.org/server/bionic/amd64/rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
   && sudo dpkg -i rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
   && sudo rm rstudio-server-*-amd64.deb 
 
@@ -224,7 +249,9 @@ EXPOSE 8787
 # -----------------------------End Install Rstudio-----------------------
 
 # -----------------------------Start Install Package-----------------------
-RUN sudo apt-get update && sudo apt-get -y --no-install-recommends install \
+RUN http_proxy=http://10.21.25.57:1081 apt-get update
+
+RUN sudo apt-get -y --no-install-recommends install \
   libxml2-dev \
   libcairo2-dev \
   libsqlite3-dev \
@@ -243,10 +270,10 @@ RUN sudo apt-get update && sudo apt-get -y --no-install-recommends install \
 RUN conda install -y PyHamcrest
 RUN sudo apt-get install -y libreadline6-dev
 RUN printf "\n export LD_LIBRARY_PATH=/usr/lib/R/lib/:/usr/lib/R/library/stats/libs/" |sudo tee -a /etc/profile
-RUN sudo env "PATH=$PATH" pip install rpy2 
+RUN sudo env "PATH=$PATH" pip install rpy2 -i https://pypi.douban.com/simple
 
 # Install ggplot for python
-RUN sudo env "PATH=$PATH" /opt/conda/bin/pip install ggplot && conda clean -ya
+RUN sudo env "PATH=$PATH" /opt/conda/bin/pip install ggplot -i https://pypi.douban.com/simple && conda clean -ya
 
 # fix the python error in matplotlib 
 RUN sudo apt-get install -y libgl1-mesa-glx
@@ -296,6 +323,8 @@ RUN R -e "install.packages(c('roxygen2'), repos = 'https://mirrors.tuna.tsinghua
 # install opencv
 RUN pip install opencv-python -i https://pypi.douban.com/simple
 
+RUN pip install dominate visdom -i https://pypi.douban.com/simple \
+ && sudo chmod -R 777 /opt/conda/lib/python3.7/site-packages/visdom/
 
 # -----------------------------End Install Package-----------------------
 
@@ -304,11 +333,19 @@ WORKDIR /opt
 RUN git clone https://github.com/google-research/disentanglement_lib.git \
  && cd disentanglement_lib \
  && pip install --upgrade setuptools \
- && pip install .[tf_gpu]
-
-
+ && pip install .[tf_gpu] -i https://pypi.douban.com/simple \
+ && cd .. && rm -rf disentanglement_lib
 #--------------------- end  Disentglement lib package------------------
 
+#------------------- install apex -----------------------
+RUN git clone https://github.com/NVIDIA/apex \
+ && cd apex \
+ && pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./ \
+ && cd .. && rm -rf apex
+#------------------  end install apex -------------------
+
+# install plotly
+RUN R -e "install.packages(c('plotly'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 
 
