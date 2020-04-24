@@ -1,5 +1,5 @@
 #FROM nvcr.io/nvidia/pytorch:19.03-py3
-FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
 
 # set mirror 
 #RUN echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic main restricted" > /etc/apt/sources.list  \
@@ -28,7 +28,7 @@ RUN echo "deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe 
 
 # Install some basic utilities
 
-RUN http_proxy=http://10.21.25.57:1081 apt-get update
+RUN http_proxy=http://10.21.25.61:1081 apt-get update
 
 RUN apt-get install -y \
     curl \
@@ -47,13 +47,14 @@ RUN  apt-get install -y --no-install-recommends \
          vim \
          ca-certificates \
          libjpeg-dev \ 
-         libpng-dev 
+         libpng-dev \
+	 aria2
 
 #https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 #https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh
 # use anaconda
 
-RUN axel -n 10 -o ~/anaconda.sh  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2019.10-Linux-x86_64.sh  && \
+RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2020.02-Linux-x86_64.sh  && \
      chmod +x ~/anaconda.sh && \
      ~/anaconda.sh -b -p /opt/conda && \
      rm ~/anaconda.sh 
@@ -72,7 +73,8 @@ RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu
 
 WORKDIR /opt/pytorch
 
-RUN conda install pytorch torchvision cudatoolkit=10.1 \
+RUN conda config --set ssl_verify no \
+  &&conda install pytorch torchvision cudatoolkit=10.2\
   && conda clean -ya
 
 # -----------------------------End Install pytorch-----------------------
@@ -156,7 +158,7 @@ ARG PANDOC_TEMPLATES_VERSION
 ENV S6_VERSION=${S6_VERSION:-v1.21.7.0}
 ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 ENV PATH=/usr/lib/rstudio-server/bin:$PATH
-ENV PANDOC_TEMPLATES_VERSION=${PANDOC_TEMPLATES_VERSION:-2.6}
+ENV PANDOC_TEMPLATES_VERSION=${PANDOC_TEMPLATES_VERSION:-2.9}
 
 ## Download and install RStudio server & dependencies
 ## Attempts to get detect latest version, otherwise falls back to version given in $VER
@@ -181,12 +183,11 @@ RUN sudo apt-get install -y --no-install-recommends \
 RUN  RSTUDIO_LATEST=$(wget --no-check-certificate -qO- https://s3.amazonaws.com/rstudio-server/current.ver) \
   && RSTUDIO_LATEST=$(echo $RSTUDIO_LATEST | cut -d- -f1) \
   && [ -z "$RSTUDIO_VERSION" ] && RSTUDIO_VERSION=$RSTUDIO_LATEST || true \
-  && axel -n 10 https://download2.rstudio.org/server/bionic/amd64/rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
+  && aria2c -c -x 10 -s 10 https://download2.rstudio.org/server/bionic/amd64/rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
   && sudo dpkg -i rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
   && sudo rm rstudio-server-*-amd64.deb 
-
-## Symlink pandoc & standard pandoc templates for use system-wide
-RUN sudo ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc /usr/local/bin \
+  ## Symlink pandoc & standard pandoc templates for use system-wide
+RUN   sudo ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc /usr/local/bin \
   && sudo ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc-citeproc /usr/local/bin \
   && sudo git clone --recursive --branch ${PANDOC_TEMPLATES_VERSION} https://github.com/jgm/pandoc-templates \
   && sudo mkdir -p /opt/pandoc/templates \
@@ -249,7 +250,7 @@ EXPOSE 8787
 # -----------------------------End Install Rstudio-----------------------
 
 # -----------------------------Start Install Package-----------------------
-RUN http_proxy=http://10.21.25.57:1081 apt-get update
+RUN http_proxy=http://10.21.25.61:1081 apt-get update
 
 RUN sudo apt-get -y --no-install-recommends install \
   libxml2-dev \
@@ -320,6 +321,10 @@ RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.e
 
 RUN R -e "install.packages(c('roxygen2'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
+# install plotly
+RUN R -e "install.packages(c('plotly'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
+
+
 # install opencv
 RUN pip install opencv-python -i https://pypi.douban.com/simple
 
@@ -344,8 +349,6 @@ RUN git clone https://github.com/NVIDIA/apex \
  && cd .. && rm -rf apex
 #------------------  end install apex -------------------
 
-# install plotly
-RUN R -e "install.packages(c('plotly'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 
 
