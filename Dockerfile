@@ -1,5 +1,5 @@
 #FROM nvcr.io/nvidia/pytorch:19.03-py3
-FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
 
 # set mirror 
 #RUN echo "deb mirror://mirrors.ubuntu.com/mirrors.txt bionic main restricted" > /etc/apt/sources.list  \
@@ -74,7 +74,7 @@ RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu
 WORKDIR /opt/pytorch
 
 RUN conda config --set ssl_verify no \
-  &&conda install pytorch torchvision cudatoolkit=10.2\
+  &&conda install pytorch torchvision cudatoolkit=10.1\
   && conda clean -ya
 
 # -----------------------------End Install pytorch-----------------------
