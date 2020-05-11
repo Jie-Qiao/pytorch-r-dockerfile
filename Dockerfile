@@ -300,7 +300,7 @@ RUN R -e "install.packages(c('foreach','doParallel'), repos = 'https://mirrors.t
 
 # install pcalg
 RUN R -e "install.packages('BiocManager', repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')" \
- && R -e "options('BioC_mirror'='http://mirrors.ustc.edu.cn/bioc/');BiocManager::install(c('graph','RBGL','Rgraphviz'))"
+ && R -e "options('BioC_mirror'='https://mirrors.tuna.tsinghua.edu.cn/bioconductor/');BiocManager::install(c('graph','RBGL','Rgraphviz'))"
 
 
 RUN sudo apt-get install -y libv8-3.14-dev \
