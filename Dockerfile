@@ -28,7 +28,7 @@ RUN echo "deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe 
 
 # Install some basic utilities
 
-RUN http_proxy=http://10.21.25.61:1081 apt-get update
+RUN http_proxy=http://10.21.25.58:1081 apt-get update
 
 RUN apt-get install -y \
     curl \
@@ -54,7 +54,8 @@ RUN  apt-get install -y --no-install-recommends \
 #https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh
 # use anaconda
 
-RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2020.02-Linux-x86_64.sh  && \
+# RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2020.02-Linux-x86_64.sh  && \
+RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.gdut.edu.cn/anaconda/archive/Anaconda3-2020.07-Linux-x86_64.sh && \
      chmod +x ~/anaconda.sh && \
      ~/anaconda.sh -b -p /opt/conda && \
      rm ~/anaconda.sh 
@@ -103,9 +104,16 @@ RUN  sudo apt-get install -y --no-install-recommends \
 		wget \
 		ca-certificates 
 
-RUN printf "deb https://mirrors.tuna.tsinghua.edu.cn/CRAN/bin/linux/ubuntu bionic-cran35/" | sudo tee -a /etc/apt/sources.list \
-         && sudo add-apt-repository --enable-source --yes "ppa:marutter/rrutter" \
-        && sudo add-apt-repository --enable-source --yes "ppa:marutter/c2d4u"
+RUN printf "deb https://mirrors.tuna.tsinghua.edu.cn/CRAN/bin/linux/ubuntu bionic-cran40/\n" | sudo tee -a /etc/apt/sources.list \
+         && printf "deb http://ppa.launchpad.net/marutter/rrutter/ubuntu bionic main\n" | sudo tee -a /etc/apt/sources.list \
+         && printf "deb-src http://ppa.launchpad.net/marutter/rrutter/ubuntu bionic main\n" | sudo tee -a /etc/apt/sources.list \
+         && printf "deb http://ppa.launchpad.net/marutter/c2d4u/ubuntu bionic main\n" | sudo tee -a /etc/apt/sources.list \
+         && printf "deb-src http://ppa.launchpad.net/marutter/c2d4u/ubuntu bionic main\n" | sudo tee -a /etc/apt/sources.list \
+        # && cat /etc/apt/sources.list \
+         && sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 5E25F516B04C661B \
+         && http_proxy=http://10.21.25.58:1081 apt-get update
+        # &&  sudo add-apt-repository --enable-source --yes "ppa:marutter/rrutter" \
+       #  &&  sudo add-apt-repository --enable-source --yes "ppa:marutter/c2d4u"
 
 
 ## Configure default locale, see https://github.com/rocker-org/rocker/issues/19
@@ -250,7 +258,7 @@ EXPOSE 8787
 # -----------------------------End Install Rstudio-----------------------
 
 # -----------------------------Start Install Package-----------------------
-RUN http_proxy=http://10.21.25.61:1081 apt-get update
+RUN http_proxy=http://10.21.25.58:1081 apt-get update
 
 RUN sudo apt-get -y --no-install-recommends install \
   libxml2-dev \
@@ -283,9 +291,9 @@ RUN sudo apt-get install -y libgl1-mesa-glx
 RUN sudo bash -c 'echo "/usr/lib/R/lib/" > /etc/ld.so.conf.d/libR.conf' && sudo ldconfig
 
 # fix the python error in ggplot
-RUN sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
- && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
- && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/utils.py
+RUN sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.8/site-packages/ggplot/stats/smoothers.py \
+ && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.8/site-packages/ggplot/stats/smoothers.py \
+ && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.8/site-packages/ggplot/utils.py
 
 # tidyverse
 RUN R -e "install.packages('tidyverse',repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
@@ -329,7 +337,7 @@ RUN R -e "install.packages(c('plotly'), repos = 'https://mirrors.tuna.tsinghua.e
 RUN pip install opencv-python -i https://pypi.douban.com/simple
 
 RUN pip install dominate visdom -i https://pypi.douban.com/simple \
- && sudo chmod -R 777 /opt/conda/lib/python3.7/site-packages/visdom/
+ && sudo chmod -R 777 /opt/conda/lib/python3.8/site-packages/visdom/
 
 # -----------------------------End Install Package-----------------------
 
@@ -337,37 +345,48 @@ RUN pip install dominate visdom -i https://pypi.douban.com/simple \
 WORKDIR /opt
 RUN git clone https://github.com/google-research/disentanglement_lib.git \
  && cd disentanglement_lib \
- && pip install --upgrade setuptools \
- && pip install .[tf_gpu] -i https://pypi.douban.com/simple \
+ && /opt/conda/bin/pip install --upgrade pip \
+ && /opt/conda/bin/pip install --upgrade setuptools \
+ && /opt/conda/bin/pip install tensorflow -i https://pypi.douban.com/simple \
+ && /opt/conda/bin/pip install . \
+# && /opt/conda/bin/pip install .[tf_gpu] -i https://pypi.douban.com/simple \
  && cd .. && rm -rf disentanglement_lib
 #--------------------- end  Disentglement lib package------------------
 
 #------------------- install apex -----------------------
-RUN git clone https://github.com/NVIDIA/apex \
- && cd apex \
- && pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./ \
- && cd .. && rm -rf apex
+# It will be included in pytorch 1.6
+#RUN git clone https://github.com/NVIDIA/apex \
+# && cd apex \
+# && pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./ \
+# && cd .. && rm -rf apex
 #------------------  end install apex -------------------
 
+# install pytorch-lightning
+#RUN pip install pytorch-lightning
+RUN pip install git+https://github.com/PytorchLightning/pytorch-lightning.git@master --upgrade
+#RUN conda install pytorch-lightning  -c conda-forge
 
 
 
 # -----------------------------Start Config SSH-----------------------
 # Create a non-root user and switch to it
-RUN adduser --disabled-password --gecos '' --shell /bin/bash qj \
- && usermod -g staff qj
-RUN echo "qj ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-qj
-USER qj
 
-# All users can use /home/qj as their home directory
-ENV HOME=/home/qj
-RUN chmod 777 /home/qj
+RUN usermod -g staff docker
+#RUN adduser --disabled-password --gecos '' --shell /bin/bash docker \
+# && usermod -g staff docker
+RUN echo "docker ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-docker
+USER docker
 
-# creat qj
-RUN echo "qj:qj1234" | sudo chpasswd 
+# All users can use /home/docker as their home directory
+ENV HOME=/home/docker
+RUN chmod 777 /home/docker
+
+# creat docker
+RUN echo "docker:docker1234" | sudo chpasswd 
 
 
-RUN sudo sudo apt-get -y install openssh-server supervisor
+RUN sudo apt-get update \
+ && sudo apt-get -y install openssh-server supervisor 
 RUN sudo mkdir /var/run/sshd
 RUN sudo sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
@@ -384,8 +403,8 @@ RUN printf "\nX11UseLocalhost no\n" | sudo tee --append /etc/ssh/sshd_config
 # -----------------------------End Config SSH-----------------------
 
 
-COPY startup.sh /home/qj/startup.sh
-CMD ["sh","/home/qj/startup.sh"]
+COPY startup.sh /home/docker/startup.sh
+CMD ["sh","/home/docker/startup.sh"]
 
 #CMD rstudio-server start && bash
 
