@@ -55,7 +55,7 @@ RUN  apt-get install -y --no-install-recommends \
 # use anaconda
 
 # RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2020.02-Linux-x86_64.sh  && \
-RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.gdut.edu.cn/anaconda/archive/Anaconda3-2020.07-Linux-x86_64.sh && \
+RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.gdut.edu.cn/anaconda/archive/Anaconda3-2020.11-Linux-x86_64.sh && \
      chmod +x ~/anaconda.sh && \
      ~/anaconda.sh -b -p /opt/conda && \
      rm ~/anaconda.sh 
@@ -63,10 +63,17 @@ RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.gdut.edu.cn/anaconda
 ENV PATH /opt/conda/bin:$PATH
 
 # config mirror from tsinghua
-RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
- && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
- && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch \
+#RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
+# && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
+# && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch \
+# && /opt/conda/bin/conda config --set show_channel_urls yes
+
+# config mirror from gdut
+RUN /opt/conda/bin/conda config --add channels https://mirrors.gdut.edu.cn/anaconda/pkgs/free/ \
+ && /opt/conda/bin/conda config --add channels https://mirrors.gdut.edu.cn/anaconda/pkgs/main/ \
+ && /opt/conda/bin/conda config --add channels https://mirrors.gdut.edu.cn/anaconda/cloud/pytorch \
  && /opt/conda/bin/conda config --set show_channel_urls yes
+
 
 #RUN  /opt/conda/bin/conda install numpy pandas pyyaml scipy ipython mkl mkl-include && \
 #     /opt/conda/bin/conda install -c pytorch magma-cuda90 && \
@@ -74,8 +81,7 @@ RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu
 
 WORKDIR /opt/pytorch
 
-RUN conda config --set ssl_verify no \
-  &&conda install pytorch torchvision cudatoolkit=10.1\
+RUN conda install pytorch torchvision cudatoolkit=10.1\
   && conda clean -ya
 
 # -----------------------------End Install pytorch-----------------------
@@ -91,7 +97,8 @@ RUN sudo useradd docker \
 	&& sudo addgroup docker staff
 
 #fix the tsinghua mirror
-RUN sudo apt-get install -y apt-transport-https \
+RUN sudo apt-get update \
+ && sudo apt-get install -y apt-transport-https\
  && sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 51716619E084DAB9 
  
 
@@ -182,7 +189,8 @@ RUN sudo apt-get install -y --no-install-recommends \
     lsb-release \
     psmisc \
     procps \
-    libclang-dev
+    libclang-dev\
+    libpq5
 #    python-setuptools \
 #  && wget -O libssl1.0.0.deb http://ftp.debian.org/debian/pool/main/o/openssl libssl1.0.0_1.0.1t-1+deb8u8_amd64.deb \
 #  && sudo dpkg -i libssl1.0.0.deb \
@@ -363,9 +371,19 @@ RUN git clone https://github.com/google-research/disentanglement_lib.git \
 
 # install pytorch-lightning
 #RUN pip install pytorch-lightning
-RUN pip install git+https://github.com/PytorchLightning/pytorch-lightning.git@master --upgrade
-#RUN conda install pytorch-lightning  -c conda-forge
+#RUN pip install git+https://github.com/PytorchLightning/pytorch-lightning.git@master --upgrade
+RUN conda install pytorch-lightning  -c conda-forge
 
+# -------------------start install resilio sync----------------------
+RUN  aria2c -c -x 10 -s 10 --https-proxy=10.21.25.58:1081 https://download-cdn.resilio.com/2.7.2.1375/Debian/resilio-sync_2.7.2.1375-1_amd64.deb \
+ && sudo dpkg -i resilio-sync_2.7.2.1375-1_amd64.deb \
+ && sudo usermod -aG docker rslsync \
+ && sudo usermod -aG rslsync docker \
+ && rm resilio-sync_2.7.2.1375-1_amd64.deb
+
+
+
+# -------------------end install resilio sync----------------------
 
 
 # -----------------------------Start Config SSH-----------------------
@@ -402,8 +420,8 @@ RUN printf "\nX11UseLocalhost no\n" | sudo tee --append /etc/ssh/sshd_config
 
 # -----------------------------End Config SSH-----------------------
 
-
 COPY startup.sh /home/docker/startup.sh
+COPY start_service.sh /home/docker/start_service.sh
 CMD ["sh","/home/docker/startup.sh"]
 
 #CMD rstudio-server start && bash
