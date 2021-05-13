@@ -334,8 +334,8 @@ RUN sudo apt-get install -y libv8-3.14-dev \
 # && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 # install kpcalg
-RUN sudo apt-get install -y libgsl-dev
-RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
+RUN sudo apt-get install -y libgsl-dev \
+ && R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 RUN R -e "install.packages(c('roxygen2'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
@@ -420,6 +420,8 @@ EXPOSE 22
 # support X11 forward
 RUN printf "\nX11UseLocalhost no\n" | sudo tee --append /etc/ssh/sshd_config
 
+# R reticulate config
+ENV RETICULATE_PYTHON_ENV=/opt/conda/bin
 # -----------------------------End Config SSH-----------------------
 
 COPY startup.sh /home/docker/startup.sh
