@@ -28,7 +28,7 @@ RUN echo "deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe 
 
 # Install some basic utilities
 
-RUN http_proxy=http://10.21.25.58:1081 apt-get update
+RUN http_proxy=http://10.21.25.75:23333 apt-get update
 
 RUN apt-get install -y \
     curl \
@@ -54,8 +54,8 @@ RUN  apt-get install -y --no-install-recommends \
 #https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh
 # use anaconda
 
-# RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2020.02-Linux-x86_64.sh  && \
-RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.gdut.edu.cn/anaconda/archive/Anaconda3-2020.11-Linux-x86_64.sh && \
+RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2020.02-Linux-x86_64.sh  && \
+# RUN aria2c -c -x 16 -s 16 -o ~/anaconda.sh  https://mirrors.gdut.edu.cn/anaconda/archive/Anaconda3-2020.02-Linux-x86_64.sh && \
      chmod +x ~/anaconda.sh && \
      ~/anaconda.sh -b -p /opt/conda && \
      rm ~/anaconda.sh 
@@ -118,7 +118,7 @@ RUN printf "deb https://mirrors.tuna.tsinghua.edu.cn/CRAN/bin/linux/ubuntu bioni
          && printf "deb-src http://ppa.launchpad.net/marutter/c2d4u/ubuntu bionic main\n" | sudo tee -a /etc/apt/sources.list \
         # && cat /etc/apt/sources.list \
          && sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 5E25F516B04C661B \
-         && http_proxy=http://10.21.25.58:1081 apt-get update
+         && http_proxy=http://10.21.25.75:23333 apt-get update
         # &&  sudo add-apt-repository --enable-source --yes "ppa:marutter/rrutter" \
        #  &&  sudo add-apt-repository --enable-source --yes "ppa:marutter/c2d4u"
 
@@ -266,7 +266,7 @@ EXPOSE 8787
 # -----------------------------End Install Rstudio-----------------------
 
 # -----------------------------Start Install Package-----------------------
-RUN http_proxy=http://10.21.25.58:1081 apt-get update
+RUN http_proxy=http://10.21.25.75:23333 apt-get update
 
 RUN sudo apt-get -y --no-install-recommends install \
   libxml2-dev \
@@ -276,7 +276,8 @@ RUN sudo apt-get -y --no-install-recommends install \
   libmariadb-client-lgpl-dev \
   libpq-dev \
   libssh2-1-dev \
-  unixodbc-dev 
+  unixodbc-dev \
+  libgit2-dev
 
 # config mirror from tsinghua
 #RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
@@ -299,9 +300,9 @@ RUN sudo apt-get install -y libgl1-mesa-glx
 RUN sudo bash -c 'echo "/usr/lib/R/lib/" > /etc/ld.so.conf.d/libR.conf' && sudo ldconfig
 
 # fix the python error in ggplot
-RUN sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.8/site-packages/ggplot/stats/smoothers.py \
- && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.8/site-packages/ggplot/stats/smoothers.py \
- && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.8/site-packages/ggplot/utils.py
+RUN sed -i 's/pandas.lib/pandas/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
+ && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/stats/smoothers.py \
+ && sed -i 's/pd.tslib.Timestamp/pd.Timestamp/g' /opt/conda/lib/python3.7/site-packages/ggplot/utils.py
 
 # tidyverse
 RUN R -e "install.packages('tidyverse',repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
@@ -333,6 +334,7 @@ RUN sudo apt-get install -y libv8-3.14-dev \
 # && R -e "install.packages(c('pcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 # install kpcalg
+RUN sudo apt-get install -y libgsl-dev
 RUN R -e "install.packages(c('kpcalg'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
 
 RUN R -e "install.packages(c('roxygen2'), repos = 'https://mirrors.tuna.tsinghua.edu.cn/CRAN')"
@@ -345,7 +347,7 @@ RUN R -e "install.packages(c('plotly'), repos = 'https://mirrors.tuna.tsinghua.e
 RUN pip install opencv-python -i https://pypi.douban.com/simple
 
 RUN pip install dominate visdom -i https://pypi.douban.com/simple \
- && sudo chmod -R 777 /opt/conda/lib/python3.8/site-packages/visdom/
+ && sudo chmod -R 777 /opt/conda/lib/python3.7/site-packages/visdom/
 
 # -----------------------------End Install Package-----------------------
 
@@ -355,9 +357,9 @@ RUN git clone https://github.com/google-research/disentanglement_lib.git \
  && cd disentanglement_lib \
  && /opt/conda/bin/pip install --upgrade pip \
  && /opt/conda/bin/pip install --upgrade setuptools \
- && /opt/conda/bin/pip install tensorflow -i https://pypi.douban.com/simple \
- && /opt/conda/bin/pip install . \
-# && /opt/conda/bin/pip install .[tf_gpu] -i https://pypi.douban.com/simple \
+ #&& /opt/conda/bin/pip install tensorflow -i https://pypi.douban.com/simple \
+ #&& /opt/conda/bin/pip install . \
+ && /opt/conda/bin/pip install .[tf_gpu] -i https://pypi.douban.com/simple \
  && cd .. && rm -rf disentanglement_lib
 #--------------------- end  Disentglement lib package------------------
 
@@ -370,12 +372,12 @@ RUN git clone https://github.com/google-research/disentanglement_lib.git \
 #------------------  end install apex -------------------
 
 # install pytorch-lightning
-#RUN pip install pytorch-lightning
+RUN pip install pytorch-lightning  -i https://pypi.douban.com/simple  
 #RUN pip install git+https://github.com/PytorchLightning/pytorch-lightning.git@master --upgrade
-RUN conda install pytorch-lightning  -c conda-forge
+#RUN conda install pytorch-lightning  -c conda-forge
 
 # -------------------start install resilio sync----------------------
-RUN  aria2c -c -x 10 -s 10 --https-proxy=10.21.25.58:1081 https://download-cdn.resilio.com/2.7.2.1375/Debian/resilio-sync_2.7.2.1375-1_amd64.deb \
+RUN  aria2c -c -x 10 -s 10 --https-proxy=10.21.25.75:23333 https://download-cdn.resilio.com/2.7.2.1375/Debian/resilio-sync_2.7.2.1375-1_amd64.deb \
  && sudo dpkg -i resilio-sync_2.7.2.1375-1_amd64.deb \
  && sudo usermod -aG docker rslsync \
  && sudo usermod -aG rslsync docker \
